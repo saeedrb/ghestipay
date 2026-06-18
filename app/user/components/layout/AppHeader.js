@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { Bell } from "lucide-react";
+import { useAuthStore } from "@/shared/stores/auth.store";
 
 export default function AppHeader() {
-  const userName = "سعید";
+  const user = useAuthStore((s) => s.user)
+
 
   return (
     <header className="
@@ -21,7 +23,7 @@ export default function AppHeader() {
           خوش آمدید
         </span>
         <span className="text-sm font-medium text-gray-800">
-          {userName}
+          {user[0]?.name}
         </span>
       </div>
 

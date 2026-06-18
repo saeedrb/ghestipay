@@ -15,8 +15,6 @@ export default function AuthGuard({ children }) {
   const hydrated = useAuthStore((s) => s.hydrated);
   const [ready, setReady] = useState(false);
 
-  console.log('user', user)
-
   useEffect(() => {
     // اجازه بده hydration کامل بشه
     setReady(true);
@@ -35,7 +33,7 @@ export default function AuthGuard({ children }) {
     }
 
     if (token && isAuthPage) {
-      if(user.identify_data.status !== "verified") {
+      if(user?.identify_data?.status !== "verified") {
         router.replace("/identify");
       } else {
         router.replace("/user/dashboard");

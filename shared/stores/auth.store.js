@@ -19,7 +19,6 @@ export const useAuthStore = create((set) => ({
   },
   updateUser: (user) => {
     set({ user });
-    console.log('updating user in store', user);
     Cookies.set("user", JSON.stringify(user));
   },
   hydrate: () => {
