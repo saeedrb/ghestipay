@@ -24,7 +24,7 @@ export default function VerifyIdentityPage() {
 
   useEffect(() => {
     console.log(user)
-    if(user[0]?.identify_data.status == 'verified') {
+    if(user[0]?.identify_data?.status == 'verified') {
       router.replace('/user/dashboard')
     }
   }, [user]);
