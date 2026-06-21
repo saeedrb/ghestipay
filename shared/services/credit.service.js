@@ -5,6 +5,10 @@ export const creditService = {
     return client.post("/api/kyc/credit-score/create");
   },
 
+  newRequest() {
+    return client.post("/api/kyc/credit-score/reset");
+  },
+
   latest() {
     return client.get("/api/kyc/credit-score/latest");
   },
@@ -13,12 +17,12 @@ export const creditService = {
     return client.get(`/api/kyc/credit-score/${creditInquiryId}`);
   },
 
-  sendVerificationCode(creditInquiryId) {
-    return client.post(`/api/kyc/credit-score/${creditInquiryId}/send-verification-code`);
+  sendVerificationCode() {
+    return client.post(`/api/kyc/credit-score/request-code`);
   },
 
-  storeVerificationCode({ creditInquiryId, code }) {
-    return client.post(`/api/kyc/credit-score/${creditInquiryId}/store-verification-code`, {
+  verifyCode({ creditInquiryId, code }) {
+    return client.post(`/api/kyc/credit-score/verify`, {
       code,
     });
   },
