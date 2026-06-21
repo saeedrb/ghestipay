@@ -28,18 +28,22 @@ export function useCredit() {
     onSuccess: updateCreditStore,
   });
 
+  const resetCreditScoreRequests = useMutation({
+    mutationFn: () => creditService.newRequest(),
+  });
+
   const getCreditScoreDetails = useMutation({
     mutationFn: (creditInquiryId) => creditService.details(creditInquiryId),
     onSuccess: updateCreditStore,
   });
 
   const sendVerificationCode = useMutation({
-    mutationFn: (creditInquiryId) => creditService.sendVerificationCode(creditInquiryId),
+    mutationFn: (creditInquiryId) => creditService.sendVerificationCode(),
     onSuccess: updateCreditStore,
   });
 
-  const storeVerificationCode = useMutation({
-    mutationFn: ({ creditInquiryId, code }) => creditService.storeVerificationCode({ creditInquiryId, code }),
+  const verifyCode = useMutation({
+    mutationFn: ({ creditInquiryId, code }) => creditService.verifyCode({ creditInquiryId, code }),
     onSuccess: updateCreditStore,
   });
 
@@ -51,9 +55,10 @@ export function useCredit() {
   return {
     getLatestCreditScore,
     createCreditScore,
+    resetCreditScoreRequests,
     getCreditScoreDetails,
     sendVerificationCode,
-    storeVerificationCode,
+    verifyCode,
     generateCreditScoreResult,
   };
 }
