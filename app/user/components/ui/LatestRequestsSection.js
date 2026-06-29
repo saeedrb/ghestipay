@@ -12,11 +12,9 @@ export default function LatestRequestsSection() {
   const [list, setList] = useState([]);
   const getOrderList = useGetOrderList({ page: 1, per_page: 10, sort: "desc" });
 
-  // const { getOrderList } = useInstallment();
-
   useEffect(() => {
     if (getOrderList.isSuccess) {
-      setLatestRequests(getOrderList.data.data.data);
+      setLatestRequests(getOrderList?.data?.data?.data?.data);
     }
   }, [getOrderList.isSuccess]);
 

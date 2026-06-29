@@ -13,6 +13,7 @@ export const installmentService = {
       }
     );
 
+
     if (res?.data?.success === false || res?.data?.status === false) {
       throw {
         response: {
@@ -25,7 +26,7 @@ export const installmentService = {
   },
 
   async getOrderList(options) {
-    return client.get("/api/installments/v2/requests", options);
+    return client.get("/v1/installment-requests", options);
   },
   async getOrderDetails(orderId) {
     return client.get(`/api/installments/requests/${orderId}`); 
