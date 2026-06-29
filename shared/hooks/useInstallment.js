@@ -33,3 +33,12 @@ export function useGetOrderDetails(orderId, options = {}) {
     ...options,
   });
 }
+
+export function useGetOrderProgressDetails(orderId, options = {}) {
+  return useQuery({
+    queryKey: ["getOrderProgressDetails", orderId],
+    queryFn: () => installmentService.getOrderProgressDetails(orderId),
+    enabled: Boolean(orderId),
+    ...options,
+  });
+}

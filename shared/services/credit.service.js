@@ -30,4 +30,19 @@ export const creditService = {
   result(creditInquiryId) {
     return client.get(`/api/kyc/credit-score/${creditInquiryId}/result`);
   },
+
+
+
+
+  startCreditScoreResultGeneration(orderTrakingId) {
+    return client.post(`/v1/installment-requests/${orderTrakingId}/credit-score/start`);
+  },
+  verifyCreditCode({ trackingId, code }) {
+    return client.post(`/v1/installment-requests/${trackingId}/credit-score/verify-otp`, {
+      otp: code
+    });
+  },
+  creditScoreResult(trackingId) {
+    return client.post(`https://platform.idehpardazan.co/api/v1/installment-requests/${trackingId}/credit-score/result`);
+  }
 };

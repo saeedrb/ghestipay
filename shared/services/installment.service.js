@@ -30,5 +30,9 @@ export const installmentService = {
   },
   async getOrderDetails(orderId) {
     return client.get(`/v1/installment-requests/${orderId}`); 
+  },
+
+  async getOrderProgressDetails(orderId) {
+    return client.get(`/v1/installment-requests/${orderId}/progress`);
   }
 };

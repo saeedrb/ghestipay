@@ -43,13 +43,30 @@ export function useCredit() {
   });
 
   const verifyCode = useMutation({
-    mutationFn: ({ creditInquiryId, code }) => creditService.verifyCode({ creditInquiryId, code }),
+    mutationFn: ({ creditInquiryId, code }) =>
+      creditService.verifyCode({ creditInquiryId, code }),
     onSuccess: updateCreditStore,
   });
 
   const generateCreditScoreResult = useMutation({
     mutationFn: (creditInquiryId) => creditService.result(creditInquiryId),
     onSuccess: updateCreditStore,
+  });
+
+  const startCreditScoreResultGeneration = useMutation({
+    mutationFn: (orderTrakingId) =>
+      creditService.startCreditScoreResultGeneration(orderTrakingId),
+  });
+
+  const verifyCreditCode = useMutation({
+    mutationFn: ({ trackingId, code }) =>
+      creditService.verifyCreditCode({ trackingId, code }),
+  });
+
+  const creditScoreResult = useMutation({
+    mutationFn: (trakingId) => {
+      return creditService.creditScoreResult(trakingId);
+    }
   });
 
   return {
@@ -60,5 +77,8 @@ export function useCredit() {
     sendVerificationCode,
     verifyCode,
     generateCreditScoreResult,
+    startCreditScoreResultGeneration,
+    verifyCreditCode,
+    creditScoreResult
   };
 }

@@ -1,20 +1,54 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageSquareText, ShieldCheck } from "lucide-react";
 import Button from "@/shared/components/ui/Button";
 import Card from "@/shared/components/ui/Card";
 import Input from "@/shared/components/ui/Input";
 
+function getRemainingSeconds(canResendAfter) {
+  if (!canResendAfter) return 0;
+
+  if (typeof canResendAfter === "number") {
+    return Math.max(0, Math.ceil(canResendAfter));
+  }
+
+  const targetTime = new Date(canResendAfter).getTime();
+  if (Number.isNaN(targetTime)) return 0;
+
+  return Math.max(0, Math.ceil((targetTime - Date.now()) / 1000));
+}
+
+function formatTimer(seconds) {
+  const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
+  const restSeconds = String(seconds % 60).padStart(2, "0");
+
+  return `${minutes}:${restSeconds}`;
+}
+
 export default function CreditCode({
   phone,
   onRequestCode,
   onSubmitCode,
+  canResendAfter,
   requesting = false,
   submitting = false,
 }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [remainingSeconds, setRemainingSeconds] = useState(() =>
+    getRemainingSeconds(canResendAfter),
+  );
+
+  useEffect(() => {
+    if (remainingSeconds <= 0) return;
+
+    const timerId = setTimeout(() => {
+      setRemainingSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => clearTimeout(timerId);
+  }, [remainingSeconds]);
 
   const handleCodeChange = (event) => {
     setError("");
@@ -70,23 +104,25 @@ export default function CreditCode({
 
         <div className="grid grid-cols-2 gap-3">
           <Button
-            disabled={requesting}
-            onClick={onRequestCode}
-            variant="secondary"
-          >
-            {requesting ? "در حال ارسال..." : "دریافت کد"}
-          </Button>
-
-          <Button
             disabled={submitting || !code}
             onClick={handleSubmit}
           >
             {submitting ? "در حال ثبت..." : "تایید"}
+          </Button>
+
+          <Button
+            disabled={requesting || remainingSeconds > 0}
+            onClick={onRequestCode}
+            variant="secondary"
+          >
+            {requesting
+              ? "در حال ارسال..."
+              : remainingSeconds > 0
+                ? formatTimer(remainingSeconds)
+                : "ارسال مجدد"}
           </Button>
         </div>
       </div>
     </Card>
   );
 }
-
-
