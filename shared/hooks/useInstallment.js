@@ -1,13 +1,17 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { installmentService } from "../services/installment.service";
+import { useInstallmentStore } from "../stores/installment.store";
 
 export function useInstallment() {
+  const queryClient = useQueryClient();
+  const setStoredPaymentPlan = useInstallmentStore((s) => s.setPaymentPlan);
+
   const storeOrder = useMutation({
     mutationFn: ({ phone, invoice_id }) =>
       installmentService.storeOrder({ phone, invoice_id }),
   });
 
-    const setPaymentPlan = useMutation({
+  const setPaymentPlan = useMutation({
     mutationFn: ({
       trackingId,
       down_payment_amount,
@@ -20,10 +24,32 @@ export function useInstallment() {
         check_interval_months,
         months,
       }),
+    onSuccess: (_data, variables) => {
+      const responseData = _data?.data?.data || _data?.data || _data || null;
+      setStoredPaymentPlan(responseData);
+
+      if (!variables?.trackingId) return;
+
+      queryClient.invalidateQueries({
+        queryKey: ["getOrderProgressDetails", variables.trackingId],
+      });
+    },
   });
 
+  const getPaymentInformation = useMutation({
+    mutationKey: ['Payment'],
+    mutationFn: ({trackingId, planId}) => installmentService.getPaymentInformation({trackingId, planId})
+  })
+
   const removePaymentPlan = useMutation({
-    mutationFn: (data) => installmentService.removePaymentPlan(data)
+    mutationFn: (data) => installmentService.removePaymentPlan(data),
+    onSuccess: (_data, variables) => {
+      if (!variables?.trackingId) return;
+
+      queryClient.invalidateQueries({
+        queryKey: ["getOrderProgressDetails", variables.trackingId],
+      });
+    },
   });
 
   const getOrderList = (options) =>
@@ -36,7 +62,8 @@ export function useInstallment() {
     storeOrder,
     getOrderList,
     setPaymentPlan,
-    removePaymentPlan
+    removePaymentPlan,
+    getPaymentInformation
   };
 }
 

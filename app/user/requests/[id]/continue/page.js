@@ -16,6 +16,7 @@ import {
   useGetEvaluateRules,
   useGetOrderProgressDetails,
 } from "@/shared/hooks/useInstallment";
+import { useInstallment } from "@/shared/hooks/useInstallment";
 import { useInstallmentStore } from "@/shared/stores/installment.store";
 import CreditScoreIntro from "@/app/user/components/ui/CreditScore/Intro";
 import { useCredit } from "@/shared/hooks/useCredit";
@@ -52,9 +53,11 @@ export default function ContinueRequestPage() {
       isPending: isCreditScoreResultPending,
     },
   } = useCredit();
+  const { getPaymentInformation } = useInstallment();
 
   // Store a copy of request details so child steps and other pages can reuse it.
   const storedOrderDetails = useInstallmentStore((s) => s.orderDetails);
+  const storedPaymentPlan = useInstallmentStore((s) => s.paymentPlan);
   const setOrderDetails = useInstallmentStore((s) => s.setOrderDetails);
 
   // The first page action is loading the latest request details from the API.
@@ -76,8 +79,21 @@ export default function ContinueRequestPage() {
     orderDetails?.tracking_id ||
     orderDetails?.tracking_code ||
     orderId;
+  const nextStep =
+    orderDetails?.next_step ||
+    orderDetails?.nextStep ||
+    fetchedOrderDetails?.next_step ||
+    fetchedOrderDetails?.nextStep ||
+    fetchedOrderDetails?.data?.next_step ||
+    fetchedOrderDetails?.data?.nextStep ||
+    null;
   const requestStatus =
     fetchedOrderDetails?.request_status || fetchedOrderDetails?.reuest_status;
+  const currentOrderStep =
+    fetchedOrderDetails?.current_step ||
+    orderDetails?.current_step ||
+    orderDetails?.currentStep ||
+    null;
   const shouldEvaluateRules =
     requestStatus === "waiting_rules" || requestStatus === 'waiting_plan_selection';
   const shouldShowCreditScoreResult =
@@ -85,6 +101,10 @@ export default function ContinueRequestPage() {
     requestStatus === "credit_score_result_pending";
   const currentStep = 1;
   const isLastStep = currentStep === 6;
+  const shouldShowDownPaymentButton =
+    nextStep === "payment" ||
+    currentOrderStep === "payment" ||
+    requestStatus === "payment";
 
   const {
     data: evaluateRulesResponse,
@@ -153,6 +173,45 @@ export default function ContinueRequestPage() {
 
   // Last step returns the user to the request details page instead of advancing.
   const handleNext = () => {
+    if (shouldShowDownPaymentButton) {
+      const planId =
+        storedPaymentPlan?.plan_id ||
+        storedPaymentPlan?.id ||
+        storedPaymentPlan?.active_plan?.plan_id ||
+        storedPaymentPlan?.active_plan?.id ||
+        orderDetails?.active_plan?.plan_id ||
+        orderDetails?.active_plan?.id ||
+        orderDetails?.payment_plan?.plan_id ||
+        orderDetails?.payment_plan?.id ||
+        orderDetails?.plan_id ||
+        fetchedOrderDetails?.active_plan?.plan_id ||
+        fetchedOrderDetails?.active_plan?.id ||
+        fetchedOrderDetails?.plan_id ||
+        fetchedOrderDetails?.payment_plan?.plan_id ||
+        fetchedOrderDetails?.payment_plan?.id;
+
+      if (!trackingId || !planId) return;
+
+      getPaymentInformation.mutate(
+        { trackingId, planId },
+        {
+          onSuccess: (res) => {
+            const paymentUrl =
+              res?.data?.data?.payment_url ||
+              res?.data?.payment_url ||
+              res?.data?.data?.url ||
+              res?.data?.url ||
+              res?.payment_url;
+
+            if (paymentUrl) {
+              router.push(paymentUrl);
+            }
+          },
+        },
+      );
+      return;
+    }
+
     if (isLastStep) {
       router.replace(`/user/requests/${params.id}`);
       return;
@@ -322,6 +381,8 @@ export default function ContinueRequestPage() {
     return <Loading message="در حال دریافت جزئیات درخواست..." />;
   }
 
+  console.log(nextStep)
+
   if (isOrderDetailsError) {
     return (
       <div className="flex w-full flex-col px-4 pb-8 pt-6">
@@ -352,14 +413,22 @@ export default function ContinueRequestPage() {
 
       {step != 2 &&
         requestStatus !== "waiting_credit_score" &&
-        requestStatus !== "waiting_rules" && (
+        requestStatus !== "waiting_rules" &&
+        nextStep !== "plan" && (
           <div className="mt-6">
             <button
               type="button"
               onClick={handleNext}
-              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition active:scale-[0.98]"
+              disabled={getPaymentInformation.isPending}
+              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isLastStep ? "پایان فرایند" : "مرحله بعد"}
+              {getPaymentInformation.isPending
+                ? "در حال انتقال..."
+                : shouldShowDownPaymentButton
+                  ? "پرداخت پیش پرداخت"
+                  : isLastStep
+                    ? "پایان فرایند"
+                    : "مرحله بعد"}
             </button>
           </div>
         )}

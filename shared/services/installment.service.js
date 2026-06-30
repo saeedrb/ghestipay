@@ -53,5 +53,9 @@ export const installmentService = {
       `/v1/installment-requests/${trackingId}/plans/${planId}/cancel`,
       {}
     );
-  } 
+  }, 
+
+  async getPaymentInformation({trackingId, planId}) {
+    return client.post(`/v1/installment-requests/${trackingId}/plans/${planId}/pay`)
+  }
 };

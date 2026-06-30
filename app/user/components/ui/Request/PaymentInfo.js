@@ -101,6 +101,12 @@ export default function PaymentInfo({
   const [openDropdown, setOpenDropdown] = useState(null);
 
   const activePlan = paymentPlanData || evaluateRulesData;
+  const activePlanRoot =
+    paymentPlanData?.active_plan ||
+    paymentPlanData ||
+    evaluateRulesData?.active_plan ||
+    evaluateRulesData ||
+    null;
   const isCalculated = isPlanLocked;
 
   // Summary math.
@@ -178,10 +184,11 @@ export default function PaymentInfo({
   };
 
   const handleChangePlan = () => {
-    if (!trackingId || !paymentPlanData?.plan_id) return;
+    const planId = activePlanRoot?.plan_id;
+    if (!trackingId || !planId) return;
 
     removePaymentPlan.mutate(
-      { trackingId, planId: paymentPlanData.plan_id },
+      { trackingId, planId },
       {
         onSuccess: () => {
           setIsPlanLocked(false);
@@ -358,7 +365,7 @@ function CalculateResult({
     <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
       <div className="mb-3 flex items-center gap-2 text-blue-700">
         <CreditCard size={20} />
-        <h3 className="text-sm font-bold">خلاصه چک‌های اقساطی</h3>
+        <h3 className="text-sm font-bold">خلاصه جزئیات پرداخت و چک‌ها</h3>
       </div>
 
       {hasPreviousPlan && (
@@ -368,29 +375,62 @@ function CalculateResult({
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SummaryLine
-          label="مبلغ اقساط ماهیانه"
-          value={formatPrice(installment?.monthly_installment_amount ?? 0)}
-        />
-        <SummaryLine
-          label="تعداد چک"
-          value={`${Number(
-            installment?.checks_count ?? checksCount,
-          ).toLocaleString("fa-IR")} فقره`}
-        />
-        <SummaryLine
-          label="هزینه انجام عملیات دیجیتال"
-          value={`${Number(
-            invoice.digital_service_fee ?? 0,
-          ).toLocaleString("fa-IR")} تومان`}
-        />
-        <SummaryLine
-          label="جمع پرداخت اقساطی"
-          value={formatPrice(
-            installment?.total_installment_amount ?? totalInstallmentPayments,
-          )}
-        />
+      <div className="space-y-3">
+        <div className="rounded-xl bg-white p-3">
+          <p className="mb-3 text-xs font-bold text-slate-500">اطلاعات چک‌ها</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SummaryLine
+              label="مبلغ اقساط ماهیانه"
+              value={formatPrice(installment?.monthly_installment_amount ?? 0)}
+            />
+            <SummaryLine
+              label="تعداد چک"
+              value={`${Number(
+                installment?.checks_count ?? checksCount,
+              ).toLocaleString("fa-IR")} فقره`}
+            />
+            <SummaryLine
+              label="فاصله بین چک ها"
+              value={`هر ${Number(
+                installment?.check_interval_months ?? 1,
+              ).toLocaleString("fa-IR")} ماه`}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-3">
+          <p className="mb-3 text-xs font-bold text-slate-500">هزینه‌های جانبی</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SummaryLine
+              label="هزینه انجام عملیات دیجیتال"
+              value={`${Number(invoice.digital_service_fee ?? 0).toLocaleString(
+                "fa-IR",
+              )} تومان`}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-3">
+          <p className="mb-3 text-xs font-bold text-slate-500">پیش پرداخت</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SummaryLine
+              label="مبلغ پیش پرداخت"
+              value={formatPrice(
+                invoice?.down_payment_amount ?? totalInstallmentPayments,
+              )}
+            />
+          </div>
+        </div>
+
+        {/* <div className="rounded-xl bg-blue-600 p-3">
+          <p className="mb-3 text-xs font-bold text-blue-100">مجموع پرداخت نهایی</p>
+          <SummaryLine
+            label="جمع کل"
+            value={formatPrice(
+              installment?.total_installment_amount ?? totalInstallmentPayments,
+            )}
+          />
+        </div> */}
       </div>
 
       <div className="mt-4 flex gap-2 rounded-xl bg-white/70 p-3 text-xs leading-6 text-slate-600">
