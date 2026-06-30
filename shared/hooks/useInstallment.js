@@ -7,14 +7,36 @@ export function useInstallment() {
       installmentService.storeOrder({ phone, invoice_id }),
   });
 
-  const getOrderList = (options) =>  useQuery({
-    queryKey: ["getOrderList"],
-    queryFn: () => installmentService.getOrderList(options),
+    const setPaymentPlan = useMutation({
+    mutationFn: ({
+      trackingId,
+      down_payment_amount,
+      check_interval_months,
+      months,
+    }) =>
+      installmentService.setPaymentPlan({
+        trackingId,
+        down_payment_amount,
+        check_interval_months,
+        months,
+      }),
   });
+
+  const removePaymentPlan = useMutation({
+    mutationFn: (data) => installmentService.removePaymentPlan(data)
+  });
+
+  const getOrderList = (options) =>
+    useQuery({
+      queryKey: ["getOrderList"],
+      queryFn: () => installmentService.getOrderList(options),
+    });
 
   return {
     storeOrder,
     getOrderList,
+    setPaymentPlan,
+    removePaymentPlan
   };
 }
 
@@ -39,6 +61,15 @@ export function useGetOrderProgressDetails(orderId, options = {}) {
     queryKey: ["getOrderProgressDetails", orderId],
     queryFn: () => installmentService.getOrderProgressDetails(orderId),
     enabled: Boolean(orderId),
+    ...options,
+  });
+}
+
+export function useGetEvaluateRules(trackingId, options = {}) {
+  return useQuery({
+    queryKey: ["getEvaluateRules", trackingId],
+    queryFn: () => installmentService.getEvaluateRules(trackingId),
+    enabled: Boolean(trackingId),
     ...options,
   });
 }

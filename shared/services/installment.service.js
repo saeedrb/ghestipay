@@ -34,5 +34,24 @@ export const installmentService = {
 
   async getOrderProgressDetails(orderId) {
     return client.get(`/v1/installment-requests/${orderId}/progress`);
-  }
+  },
+
+  async getEvaluateRules(trackingId) {
+    return client.post(`/v1/installment-requests/${trackingId}/rules/evaluate`)
+  },
+
+  async setPaymentPlan({trackingId, down_payment_amount, months, check_interval_months }) {
+    return client.post(`/v1/installment-requests/${trackingId}/plans/select`, {
+      down_payment_amount,
+      check_interval_months,
+      months
+    })
+  },
+
+  async removePaymentPlan({trackingId, planId}) {
+    return client.post(
+      `/v1/installment-requests/${trackingId}/plans/${planId}/cancel`,
+      {}
+    );
+  } 
 };

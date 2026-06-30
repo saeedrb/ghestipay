@@ -12,7 +12,10 @@ import RequestIntro from "@/app/user/components/ui/Request/RequestIntro";
 import RequiredMents from "@/app/user/components/ui/Request/RequiredMents";
 import WaitingPage from "@/app/user/components/ui/Request/WaitingPage";
 import Loading from "@/shared/components/ui/Loading";
-import { useGetOrderProgressDetails } from "@/shared/hooks/useInstallment";
+import {
+  useGetEvaluateRules,
+  useGetOrderProgressDetails,
+} from "@/shared/hooks/useInstallment";
 import { useInstallmentStore } from "@/shared/stores/installment.store";
 import CreditScoreIntro from "@/app/user/components/ui/CreditScore/Intro";
 import { useCredit } from "@/shared/hooks/useCredit";
@@ -73,11 +76,25 @@ export default function ContinueRequestPage() {
     orderDetails?.tracking_id ||
     orderDetails?.tracking_code ||
     orderId;
+  const requestStatus =
+    fetchedOrderDetails?.request_status || fetchedOrderDetails?.reuest_status;
+  const shouldEvaluateRules =
+    requestStatus === "waiting_rules" || requestStatus === 'waiting_plan_selection';
   const shouldShowCreditScoreResult =
     fetchedOrderDetails?.current_step === "rules" ||
-    fetchedOrderDetails?.request_status === "credit_score_result_pending";
+    requestStatus === "credit_score_result_pending";
   const currentStep = 1;
   const isLastStep = currentStep === 6;
+
+  const {
+    data: evaluateRulesResponse,
+    isLoading: isEvaluateRulesLoading,
+  } = useGetEvaluateRules(trackingId, {
+    enabled: Boolean(trackingId) && shouldEvaluateRules,
+  });
+
+  const evaluateRulesData =
+    evaluateRulesResponse?.data?.data || evaluateRulesResponse?.data || null;
 
   // Sync fresh API data into Zustand for the rest of the installment flow.
   useEffect(() => {
@@ -166,6 +183,20 @@ export default function ContinueRequestPage() {
 
   // Each wizard step receives the same request details and decides what it needs.
   const renderStepContent = () => {
+    if (shouldEvaluateRules) {
+      if (isEvaluateRulesLoading) {
+        return <Loading message="در حال بررسی قوانین درخواست..." />;
+      }
+
+      return (
+        <PaymentInfo
+          trackingId={trackingId}
+          orderDetails={fetchedOrderDetails}
+          evaluateRulesData={evaluateRulesData}
+        />
+      );
+    }
+
     switch (fetchedOrderDetails?.current_step) {
       case "credit_score":
         if (step == 1) {
@@ -230,20 +261,37 @@ export default function ContinueRequestPage() {
           );
         }
       case "rules":
+      case "plan":
+        console.log('rules data', shouldEvaluateRules, isEvaluateRulesLoading, evaluateRulesData)
+        if (requestStatus == "waiting_credit_score") {
+          return (
+            <CreditScoreResult
+              status={creditScoreResultData ? "ready" : "pending"}
+              score={creditScoreResultData?.credit_score?.risk_grade}
+              reportDate={
+                creditScoreResultData?.checked_at ||
+                creditScoreResultData?.created_at ||
+                undefined
+              }
+              riskTitle={creditScoreResultData?.final_analysis?.risk_level}
+              checksSummaryValue={creditScoreResultData?.checks?.summary}
+              startingNew={isCreditScoreResultPending}
+              loanSummary={creditScoreResultData?.facilities?.received}
+              loanGuarantedSummary={
+                creditScoreResultData?.facilities?.guaranteed
+              }
+            />
+          );
+        }
+        if (shouldEvaluateRules && isEvaluateRulesLoading) {
+          return <Loading message="در حال بررسی قوانین درخواست..." />;
+        }
+      
         return (
-          <CreditScoreResult
-            status={creditScoreResultData ? "ready" : "pending"}
-            score={creditScoreResultData?.credit_score?.risk_grade}
-            reportDate={
-              creditScoreResultData?.checked_at ||
-              creditScoreResultData?.created_at ||
-              undefined
-            }
-            riskTitle={creditScoreResultData?.final_analysis?.risk_level}
-            checksSummaryValue={creditScoreResultData?.checks?.summary}
-            startingNew={isCreditScoreResultPending}
-            loanSummary={creditScoreResultData?.facilities?.received}
-            loanGuarantedSummary={creditScoreResultData?.facilities?.guaranteed}
+          <PaymentInfo
+            trackingId={trackingId}
+            orderDetails={fetchedOrderDetails}
+            evaluateRulesData={evaluateRulesData}
           />
         );
 
@@ -302,17 +350,19 @@ export default function ContinueRequestPage() {
 
       <div className="mt-2">{renderStepContent()}</div>
 
-      {step != 2 && (
-        <div className="mt-6">
-          <button
-            type="button"
-            onClick={handleNext}
-            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition active:scale-[0.98]"
-          >
-            {isLastStep ? "پایان فرایند" : "مرحله بعد"}
-          </button>
-        </div>
-      )}
+      {step != 2 &&
+        requestStatus !== "waiting_credit_score" &&
+        requestStatus !== "waiting_rules" && (
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={handleNext}
+              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition active:scale-[0.98]"
+            >
+              {isLastStep ? "پایان فرایند" : "مرحله بعد"}
+            </button>
+          </div>
+        )}
     </div>
   );
 }
