@@ -479,7 +479,7 @@ export default function ContinueRequestPage() {
       <div className="mt-2">{renderStepContent()}</div>
 
       {step != 2 &&
-        requestStatus !== "waiting_credit_score" &&
+        // requestStatus !== "waiting_credit_score" &&
         requestStatus !== "waiting_rules" &&
         requestStatus !== 'waiting_guarantor' &&
         nextStep !== "plan" && (
