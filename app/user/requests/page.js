@@ -120,6 +120,7 @@ export default function RequestsPage() {
       installmentsTotal: `${Number(
         request?.amounts?.invoice_amount ?? 0
       ).toLocaleString("fa-IR")} تومان`,
+      genericStatus: request.status,
       status: getRequestStatus(request.status),
       itemsCount: Number(request?.items?.length).toLocaleString("fa-IR") ?? 0,
     }));

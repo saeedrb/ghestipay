@@ -25,3 +25,5 @@ export function proxy(req) {
 export const config = {
   matcher: ["/user/:path*", "/shop/:path*", "/", "/otp"],
 };
+
+

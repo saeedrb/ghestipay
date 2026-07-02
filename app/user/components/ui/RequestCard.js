@@ -1,107 +1,399 @@
 ﻿"use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CalendarDays, ChevronLeft, PackageCheck, ReceiptText, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  ChevronLeft,
+  PackageCheck,
+  ReceiptText,
+  WalletCards,
+  Copy,
+  Check,
+} from "lucide-react";
 
-function getStatusClass(status) {
-  if (status === "تایید شده") return "bg-emerald-50 text-emerald-600";
-  if (["رد شده", "لغو شده"].includes(status)) return "bg-red-50 text-red-600";
-  if (status === "در انتظار پرداخت") return "bg-amber-50 text-amber-600";
-  return "bg-blue-50 text-blue-600";
+function getRequestState(genericStatus) {
+  const map = {
+    waiting_credit_score: {
+      label: "در انتظار اعتبارسنجی",
+      tone: "info",
+      subtitle: "فرآیند اعتبارسنجی درخواست شما آغاز شده است",
+    },
+
+    credit_score_otp_sent: {
+      label: "تایید شماره برای اعتبارسنجی",
+      tone: "action",
+      subtitle: "کد تایید برای ادامه اعتبارسنجی ارسال شده است",
+    },
+
+    credit_score_verified: {
+      label: "اعتبارسنجی ثبت شد",
+      tone: "info",
+      subtitle: "اطلاعات اعتبارسنجی ثبت شده و نتیجه در حال پردازش است",
+    },
+
+    credit_score_result_pending: {
+      label: "در انتظار نتیجه اعتبارسنجی",
+      tone: "info",
+      subtitle: "نتیجه اعتبارسنجی هنوز نهایی نشده است",
+    },
+
+    waiting_rules: {
+      label: "در انتظار تایید قوانین",
+      tone: "action",
+      subtitle: "برای ادامه، قوانین و شرایط درخواست را تایید کنید",
+    },
+
+    waiting_payment: {
+      label: "در انتظار پرداخت",
+      tone: "warning",
+      subtitle: "برای نهایی شدن درخواست، پرداخت را تکمیل کنید",
+    },
+
+    waiting_plan_selection: {
+      label: "در انتظار انتخاب طرح",
+      tone: "action",
+      subtitle: "برای ادامه، طرح بازپرداخت خود را انتخاب کنید",
+    },
+
+    manual_review: {
+      label: "بررسی دستی",
+      tone: "info",
+      subtitle: "درخواست شما توسط کارشناسان در حال بررسی است",
+    },
+
+    waiting_guarantor: {
+      label: "در انتظار ثبت ضامن",
+      tone: "action",
+      subtitle: "برای ادامه درخواست، اطلاعات ضامن را تکمیل کنید",
+    },
+
+    waiting_customer_checks: {
+      label: "در حال بررسی اطلاعات",
+      tone: "info",
+      subtitle: "اطلاعات و مدارک شما در حال بررسی است",
+    },
+
+    waiting_signature: {
+      label: "در انتظار امضای قرارداد",
+      tone: "action",
+      subtitle: "برای ادامه، قرارداد را امضا کنید",
+    },
+
+    under_review: {
+      label: "در حال بررسی",
+      tone: "info",
+      subtitle: "درخواست شما در حال بررسی نهایی است",
+    },
+
+    waiting_documents: {
+      label: "در انتظار مدارک",
+      tone: "action",
+      subtitle: "برای ادامه، مدارک موردنیاز را بارگذاری کنید",
+    },
+
+    approved: {
+      label: "تایید شده",
+      tone: "success",
+      subtitle: "درخواست شما تایید شده و جزئیات آن در دسترس است",
+    },
+
+    rejected: {
+      label: "رد شده",
+      tone: "danger",
+      subtitle: "این درخواست تایید نشده و امکان ادامه آن وجود ندارد",
+      rejectionTitle: "این درخواست تایید نشد",
+    },
+
+    cancelled: {
+      label: "لغو شده",
+      tone: "danger",
+      subtitle: "این درخواست لغو شده و در حال حاضر فعال نیست",
+      rejectionTitle: "این درخواست لغو شده است",
+    },
+  };
+
+  return (
+    map[genericStatus] || {
+      label: "در حال بررسی",
+      tone: "info",
+      subtitle: "وضعیت درخواست شما در حال بررسی است",
+    }
+  );
+}
+
+function getStatusStyles(tone) {
+  if (tone === "success") {
+    return {
+      badge: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100",
+      dot: "bg-emerald-500",
+    };
+  }
+
+  if (tone === "danger") {
+    return {
+      badge: "bg-red-50 text-red-600 ring-1 ring-red-100",
+      dot: "bg-red-500",
+    };
+  }
+
+  if (tone === "warning") {
+    return {
+      badge: "bg-amber-50 text-amber-600 ring-1 ring-amber-100",
+      dot: "bg-amber-500",
+    };
+  }
+
+  if (tone === "action") {
+    return {
+      badge: "bg-sky-50 text-sky-600 ring-1 ring-sky-100",
+      dot: "bg-sky-500",
+    };
+  }
+
+  return {
+    badge: "bg-blue-50 text-blue-600 ring-1 ring-blue-100",
+    dot: "bg-blue-500",
+  };
 }
 
 function getAction(request, returnQuery = "") {
-  if (request.status === "تایید شده") {
+  const status = request?.genericStatus;
+
+  if (status === "approved") {
     return {
       href: `/user/requests/${request.id}${returnQuery}`,
-      label: "جزئیات",
-      className: "bg-gray-50 text-gray-700 hover:bg-gray-100",
+      label: "مشاهده جزئیات",
     };
   }
 
-  if (request.status === "در حال بررسی") {
-    return {
-      href: `/user/requests/${request.id}/continue${returnQuery}`,
-      label: "ادامه",
-      className: "bg-blue-50 text-blue-600 hover:bg-blue-100",
-    };
+  if (status === "rejected" || status === "cancelled") {
+    return null;
   }
 
-  return null;
+  return {
+    href: `/user/requests/${request.id}/continue${returnQuery}`,
+    label: "ادامه درخواست",
+  };
 }
 
 export default function RequestCard({ request, returnQuery = "" }) {
+  const [copied, setCopied] = useState(false);
+
+  const requestState = getRequestState(request.genericStatus);
+  const statusStyle = getStatusStyles(requestState.tone);
   const action = getAction(request, returnQuery);
-  const rejectionReason = request.rejectionReason || request.cancelReason || "درخواست شما به دلیل عدم تایید اطلاعات ثبت‌شده رد شده است.";
-  const shouldShowReason = ["رد شده", "لغو شده"].includes(request.status);
+
+  const rejectionReason =
+    request.rejectionReason ||
+    request.cancelReason ||
+    "درخواست شما به دلیل عدم تایید اطلاعات ثبت‌شده رد شده است.";
+
+  const shouldShowReason = ["rejected", "cancelled"].includes(
+    request.genericStatus
+  );
+
+  const handleCopyRequestId = async () => {
+    try {
+      await navigator.clipboard.writeText(String(request.id));
+      setCopied(true);
+
+      setTimeout(() => {
+        setCopied(false);
+      }, 1600);
+    } catch (error) {
+      console.error("Copy failed:", error);
+    }
+  };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <svg
-        className="pointer-events-none absolute left-0 top-0 h-full w-32 text-gray-50"
-        fill="none"
-        viewBox="0 0 160 160"
-        aria-hidden="true"
-      >
-        <circle cx="128" cy="24" r="54" stroke="currentColor" strokeWidth="18" />
-        <path d="M16 132C44 92 78 92 136 118" stroke="currentColor" strokeWidth="14" strokeLinecap="round" />
-        <path d="M22 42H92" stroke="currentColor" strokeWidth="10" strokeLinecap="round" />
-      </svg>
+    <div
+      dir="rtl"
+      className="
+        mt-4
+        relative overflow-hidden
+        rounded-[28px]
+        border border-zinc-200/80
+        bg-white
+        p-4
+        shadow-[0_14px_40px_rgba(24,24,27,0.06)]
+      "
+    >
+      {/* ambient background */}
+      <div className="pointer-events-none absolute -left-8 -top-8 h-28 w-28 rounded-full bg-sky-100/70 blur-2xl" />
+      <div className="pointer-events-none absolute -right-6 bottom-0 h-24 w-24 rounded-full bg-amber-100/40 blur-2xl" />
 
-      <div className="relative space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gray-50 text-gray-700">
-            <ReceiptText size={20} />
+      <div className="relative">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className="
+                flex h-12 w-12 shrink-0 items-center justify-center
+                rounded-2xl
+                bg-zinc-50 text-zinc-700
+                ring-1 ring-zinc-100
+              "
+            >
+              <ReceiptText size={22} />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-zinc-900">
+                درخواست خرید اقساطی
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                {requestState.subtitle}
+              </p>
+            </div>
           </div>
-          <span className={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClass(request.status)}`}>
-            {request.status}
-          </span>
+
+          <div
+            className={`
+              inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5
+              whitespace-nowrap text-[11px] font-bold
+              ${statusStyle.badge}
+            `}
+          >
+            <span className={`h-2 w-2 rounded-full ${statusStyle.dot}`} />
+            <span>{requestState.label}</span>
+          </div>
         </div>
 
-        <div className="grid gap-3 text-sm">
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-gray-500">
-              <CalendarDays size={17} />
-              تاریخ درخواست
+        {/* Request ID row */}
+        <div className="mt-4 rounded-2xl border border-zinc-100 bg-zinc-50/80 px-3 py-3">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="shrink-0 text-[11px] font-medium text-zinc-500">
+              شماره درخواست:
             </span>
-            <span className="font-bold text-gray-900">{request.date}</span>
-          </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-gray-500">
-              <ShieldCheck size={17} />
-              مبلغ کل اقساط
-            </span>
-            <span className="font-bold text-gray-900">{request.installmentsTotal}</span>
-          </div>
+            <div className="min-w-0 flex flex-1 items-center gap-2">
+              <span
+                className="block min-w-0 flex-1 truncate text-sm font-bold text-zinc-900"
+                title={String(request.id)}
+              >
+                {request.id}
+              </span>
 
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-gray-500">
-              <PackageCheck size={17} />
-              تعداد کالای درخواست
-            </span>
-            <span className="font-bold text-gray-900">{request.itemsCount} کالا</span>
+              <button
+                type="button"
+                onClick={handleCopyRequestId}
+                aria-label="کپی شماره درخواست"
+                className={`
+                  flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl px-2 transition-colors
+                  ${
+                    copied
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "text-zinc-500 hover:bg-white hover:text-zinc-700"
+                  }
+                `}
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied && (
+                  <span className="text-[11px] font-bold">کپی شد</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
+        {/* Stats */}
+        <div className="mt-4 space-y-2.5">
+          <AmountTile value={request.installmentsTotal} />
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <MetaTile
+              icon={CalendarDays}
+              label="تاریخ درخواست"
+              value={request.date}
+            />
+
+            <MetaTile
+              icon={PackageCheck}
+              label="تعداد کالا"
+              value={`${request.itemsCount} کالا`}
+            />
+          </div>
+        </div>
+
+        {/* Rejection / cancellation reason */}
         {shouldShowReason && (
-          <div className="flex items-start gap-2 rounded-2xl bg-red-50 p-3 text-red-600">
-            <AlertTriangle size={17} className="mt-0.5 shrink-0" />
-            <p className="text-xs leading-6">{rejectionReason}</p>
+          <div className="mt-4 rounded-2xl border border-red-100 bg-red-50/80 p-3">
+            <div className="flex items-start gap-2.5 text-red-600">
+              <AlertTriangle size={17} className="mt-0.5 shrink-0" />
+
+              <div className="min-w-0">
+                <p className="text-xs font-bold">
+                  {requestState.rejectionTitle || "این درخواست تایید نشد"}
+                </p>
+
+                <p className="mt-1 text-xs leading-6 text-red-600/90">
+                  {rejectionReason}
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
+        {/* Action */}
         {action && (
-          <Link
-            href={action.href}
-            className={`inline-flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold transition ${action.className}`}
-          >
-            {action.label}
-            <ChevronLeft size={16} />
-          </Link>
+          <div className="mt-4 flex justify-end">
+            <Link
+              href={action.href}
+              className="
+                inline-flex items-center gap-1.5
+                text-sm font-bold text-amber-600
+                transition-colors hover:text-amber-700
+              "
+            >
+              <span>{action.label}</span>
+              <ChevronLeft size={16} />
+            </Link>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
+function AmountTile({ value }) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-amber-100 bg-amber-50/80 px-4 py-3.5">
+      <div className="pointer-events-none absolute -left-6 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full bg-amber-200/30 blur-2xl" />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-amber-700">
+            <WalletCards size={16} />
+            <span className="text-[11px] font-medium">مبلغ کل اقساط</span>
+          </div>
+
+          <p className="mt-2 text-lg font-extrabold tracking-tight text-zinc-950 break-words">
+            {value}
+          </p>
+        </div>
+
+        <div className="shrink-0 rounded-2xl bg-white/70 px-2.5 py-1 text-[10px] font-medium text-amber-700 ring-1 ring-amber-100">
+          اقساط
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetaTile({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-2xl border border-zinc-100 bg-zinc-50/70 px-3 py-3">
+      <div className="flex items-center gap-1.5 text-zinc-500">
+        <Icon size={15} />
+        <span className="text-[10px] leading-none">{label}</span>
+      </div>
+
+      <p className="mt-2 text-xs font-bold leading-5 text-zinc-900">
+        {value}
+      </p>
+    </div>
+  );
+}

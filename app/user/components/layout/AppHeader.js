@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, ChevronLeft, WalletCards } from "lucide-react";
+import { Bell, ChevronLeft, WalletCards, Wallet } from "lucide-react";
 import { useAuthStore } from "@/shared/stores/auth.store";
 
 export default function AppHeader() {
@@ -44,7 +44,7 @@ export default function AppHeader() {
             aria-label="کیف پول"
             className="header-action header-action-wallet relative flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition-all duration-200 active:scale-95"
           >
-            <WalletCards size={18} />
+            <Wallet size={18} />
           </Link>
 
           <Link

@@ -25,6 +25,7 @@ export default function LatestRequestsSection() {
         id: request.tracking_code,
         date: new Date(request.created_at).toLocaleDateString("fa-IR"),
         installmentsTotal: `${Number(request?.amounts?.invoice_amount).toLocaleString("fa-IR")} تومان`,
+        genericStatus: request.status,
         status:
           request.status === "rejected"
             ? "رد شده"
