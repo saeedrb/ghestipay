@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -236,6 +236,7 @@ export default function OtpPage() {
   const [step, setStep] = useState(1);
   const [timer, setTimer] = useState(120);
   const [serverError, setServerError] = useState("");
+  const lastAutoSubmittedCode = useRef("");
 
   const phoneFormik = useFormik({
     initialValues: { phone: "" },
@@ -291,6 +292,22 @@ export default function OtpPage() {
 
     return () => clearTimeout(timeoutId);
   }, [timer, step]);
+
+  useEffect(() => {
+    if (step !== 2) return;
+    if (verify.isPending) return;
+    const code = codeFormik.values.code;
+
+    if (!/^\d{5}$/.test(code)) {
+      lastAutoSubmittedCode.current = "";
+      return;
+    }
+
+    if (lastAutoSubmittedCode.current === code) return;
+
+    lastAutoSubmittedCode.current = code;
+    codeFormik.submitForm();
+  }, [codeFormik, step, verify.isPending]);
 
   const formatTime = (sec) => {
     const m = String(Math.floor(sec / 60)).padStart(2, "0");

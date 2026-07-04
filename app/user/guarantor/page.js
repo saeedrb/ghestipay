@@ -20,8 +20,10 @@ import {
 
 const GUARANTOR_STEPS = ["اعتبارسنجی", "کد تایید", "نتیجه"];
 
-function getInitialStage({ step }) {
+function getInitialStage({ step, status, nextStep }) {
   if (step) return step;
+  if (status === "credit_score_result_pending") return status;
+  if (nextStep === "credit_score_result_pending") return nextStep;
   return "waiting_credit_score";
 }
 
@@ -66,8 +68,10 @@ export default function GuarantorPage() {
     () =>
       getInitialStage({
         step: searchParams.get("step"),
+        status,
+        nextStep,
       }),
-    [searchParams],
+    [nextStep, searchParams, status],
   );
   const currentStep = getCurrentStep(stage);
   const {
@@ -88,6 +92,15 @@ export default function GuarantorPage() {
   };
 
   const handleRequestCreditCode = ({ onError }) => {
+    if (
+      stage === "credit_score_result_pending" ||
+      status === "credit_score_result_pending" ||
+      nextStep === "credit_score_result_pending"
+    ) {
+      goToStage("credit_score_result_pending");
+      return;
+    }
+
     if (!requestId) {
       onError?.("شناسه درخواست ضمانت پیدا نشد.");
       return;

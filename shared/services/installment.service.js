@@ -36,6 +36,7 @@ export const installmentService = {
   },
 
   async getEvaluateRules(trackingId) {
+    // return false;
     return client.post(`/v1/installment-requests/${trackingId}/rules/evaluate`);
   },
 

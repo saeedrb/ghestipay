@@ -36,13 +36,19 @@ export default function ContinueRequestPage() {
   const [step, setStep] = useState(1);
   const [creditScoreStartData, setCreditScoreStartData] = useState(null);
   const [creditScoreResultData, setCreditScoreResultData] = useState(null);
+  const [isCreditScorePollingStopped, setIsCreditScorePollingStopped] =
+    useState(false);
+  const [isEvaluateRulesRequested, setIsEvaluateRulesRequested] =
+    useState(false);
   const [guarantorResult, setGuarantorResult] = useState({
     status: "idle",
     message: "",
   });
   const [guarantorClearKey, setGuarantorClearKey] = useState(0);
   const startedCreditScoreTrackingRef = useRef(null);
-  const fetchedCreditScoreResultRef = useRef(null);
+  const creditScoreResultMutationRef = useRef(null);
+  const creditScoreResultInFlightRef = useRef(false);
+  const refetchOrderDetailsRef = useRef(null);
   const {
     startCreditScoreResultGeneration: {
       mutate: startCreditScoreResultGeneration,
@@ -102,9 +108,29 @@ export default function ContinueRequestPage() {
     requestStatus === "waiting_rules" ||
     requestStatus === "waiting_plan_selection" ||
     requestStatus == "waiting_payment";
+  const shouldFetchEvaluateRules =
+    requestStatus === "waiting_rules"
+      ? isEvaluateRulesRequested
+      : shouldEvaluateRules;
   const shouldShowCreditScoreResult =
     fetchedOrderDetails?.current_step === "rules" ||
-    requestStatus === "credit_score_result_pending";
+    requestStatus === "credit_score_result_pending" ||
+    requestStatus === "waiting_plan_selection";
+  const shouldPollCreditScoreResult =
+    Boolean(trackingId) &&
+    shouldShowCreditScoreResult &&
+    !creditScoreResultData &&
+    !isCreditScorePollingStopped &&
+    ["credit_score_result_pending", "waiting_credit_score"].includes(
+      requestStatus,
+    );
+  const effectiveCreditScoreStartData =
+    creditScoreStartData ||
+    (requestStatus === "credit_score_otp_sent" ? fetchedOrderDetails : null);
+  const hasCreditScoreOtp =
+    requestStatus === "credit_score_otp_sent" ||
+    nextStep === "credit_score_otp_sent" ||
+    effectiveCreditScoreStartData?.request_status === "credit_score_otp_sent";
   const currentStep = 1;
   const isLastStep = currentStep === 6;
   const shouldShowDownPaymentButton =
@@ -114,11 +140,20 @@ export default function ContinueRequestPage() {
 
   const { data: evaluateRulesResponse, isLoading: isEvaluateRulesLoading } =
     useGetEvaluateRules(trackingId, {
-      enabled: Boolean(trackingId) && shouldEvaluateRules,
+      enabled: Boolean(trackingId) && shouldFetchEvaluateRules,
+      onSuccess: () => {
+        refetchOrderDetails();
+      },
     });
 
   const evaluateRulesData =
     evaluateRulesResponse?.data?.data || evaluateRulesResponse?.data || null;
+
+  // Sync fresh API data into Zustand for the rest of the installment flow.
+  useEffect(() => {
+    creditScoreResultMutationRef.current = creditScoreResult;
+    refetchOrderDetailsRef.current = refetchOrderDetails;
+  }, [creditScoreResult, refetchOrderDetails]);
 
   // Sync fresh API data into Zustand for the rest of the installment flow.
   useEffect(() => {
@@ -145,38 +180,73 @@ export default function ContinueRequestPage() {
 
   useEffect(() => {
     if (step !== 2) return;
+    if (hasCreditScoreOtp) return;
+    if (shouldShowCreditScoreResult) return;
 
     startCreditScore();
-  }, [step, startCreditScore]);
+  }, [hasCreditScoreOtp, shouldShowCreditScoreResult, step, startCreditScore]);
 
   useEffect(() => {
-    if (!trackingId) return;
-    if (!shouldShowCreditScoreResult) return;
-    if (fetchedCreditScoreResultRef.current === trackingId) return;
+    setIsCreditScorePollingStopped(false);
+  }, [trackingId]);
 
-    fetchedCreditScoreResultRef.current = trackingId;
-    creditScoreResult(trackingId, {
-      onSuccess: (res) => {
-        setCreditScoreResultData(
-          res?.data?.data?.report || res?.data?.report || null,
-        );
-        refetchOrderDetails();
-      },
-      onError: () => {
-        fetchedCreditScoreResultRef.current = null;
-      },
-    });
-  }, [
-    trackingId,
-    shouldShowCreditScoreResult,
-    creditScoreResult,
-    refetchOrderDetails,
-  ]);
+  useEffect(() => {
+    if (!shouldPollCreditScoreResult) return;
+
+    const requestCreditScoreResult = () => {
+      if (creditScoreResultInFlightRef.current) return;
+
+      creditScoreResultInFlightRef.current = true;
+      creditScoreResultMutationRef.current?.(trackingId, {
+        onSuccess: (res) => {
+          const responseData = res?.data?.data || res?.data || null;
+          const report = responseData?.report || res?.data?.report || null;
+          const responseStatus =
+            responseData?.request_status || res?.data?.request_status;
+          const responseNextStep =
+            responseData?.next_step || res?.data?.next_step;
+
+          if (report) {
+            setCreditScoreResultData(report);
+            refetchOrderDetailsRef.current?.();
+            return;
+          }
+
+          if (
+            responseStatus === "waiting_plan_selection" ||
+            responseNextStep === "plan"
+          ) {
+            setIsCreditScorePollingStopped(true);
+            refetchOrderDetailsRef.current?.();
+          }
+        },
+        onSettled: () => {
+          creditScoreResultInFlightRef.current = false;
+        },
+        onError: () => {
+          creditScoreResultInFlightRef.current = false;
+        },
+      });
+    };
+
+    requestCreditScoreResult();
+    const intervalId = setInterval(requestCreditScoreResult, 10000);
+
+    return () => {
+      clearInterval(intervalId);
+      creditScoreResultInFlightRef.current = false;
+    };
+  }, [trackingId, shouldPollCreditScoreResult]);
 
   console.log("start credit data", creditScoreStartData);
 
   // Last step returns the user to the request details page instead of advancing.
   const handleNext = () => {
+    if (requestStatus === "waiting_rules" && !isEvaluateRulesRequested) {
+      setIsEvaluateRulesRequested(true);
+      return;
+    }
+
     if (shouldShowDownPaymentButton) {
       const planId =
         storedPaymentPlan?.plan_id ||
@@ -280,7 +350,22 @@ export default function ContinueRequestPage() {
 
   // Each wizard step receives the same request details and decides what it needs.
   const renderStepContent = () => {
-    if (shouldEvaluateRules) {
+
+    // if (requestStatus === "waiting_rules" && isEvaluateRulesRequested) {
+    //   if (isEvaluateRulesLoading) {
+    //     return <Loading message="در حال بررسی قوانین درخواست..." />;
+    //   }
+
+    //   return (
+    //     <PaymentInfo
+    //       trackingId={trackingId}
+    //       orderDetails={fetchedOrderDetails}
+    //       evaluateRulesData={evaluateRulesData}
+    //     />
+    //   );
+    // }
+    
+    if (shouldEvaluateRules && requestStatus != 'waiting_rules') {
       if (isEvaluateRulesLoading) {
         return <Loading message="در حال بررسی قوانین درخواست..." />;
       }
@@ -294,16 +379,13 @@ export default function ContinueRequestPage() {
       );
     }
 
+    console.log('cur', requestStatus);
     switch (fetchedOrderDetails?.current_step) {
       case "credit_score":
         if (step == 1) {
           return <RequestIntro orderDetails={orderDetails} />;
         }
         if (step == 2) {
-          if (!creditScoreStartData) {
-            return <Loading message="در حال آماده‌سازی پرداخت..." />;
-          }
-
           if (shouldShowCreditScoreResult) {
             return (
               <CreditScoreResult
@@ -325,16 +407,23 @@ export default function ContinueRequestPage() {
             );
           }
 
-          if (creditScoreStartData.request_status === "credit_score_otp_sent") {
+          if (!effectiveCreditScoreStartData) {
+            return <Loading message="در حال آماده‌سازی پرداخت..." />;
+          }
+
+          if (
+            effectiveCreditScoreStartData.request_status === "credit_score_otp_sent" ||
+            requestStatus === "credit_score_otp_sent"
+          ) {
             return (
               <CreditCode
                 canResendAfter={
-                  creditScoreStartData?.can_resend_after ||
-                  creditScoreStartData?.canResendAfter
+                  effectiveCreditScoreStartData?.can_resend_after ||
+                  effectiveCreditScoreStartData?.canResendAfter
                 }
                 key={
-                  creditScoreStartData?.can_resend_after ||
-                  creditScoreStartData?.canResendAfter ||
+                  effectiveCreditScoreStartData?.can_resend_after ||
+                  effectiveCreditScoreStartData?.canResendAfter ||
                   "credit-code"
                 }
                 onRequestCode={handleResendCode}
@@ -346,14 +435,14 @@ export default function ContinueRequestPage() {
           }
           return (
             <CreditScoreIntro
-              amount={creditScoreStartData?.amount}
-              discountAmount={creditScoreStartData?.discount_amount}
-              finalAmount={creditScoreStartData?.final_amount}
-              paymentUrl={creditScoreStartData?.payment_url}
+              amount={effectiveCreditScoreStartData?.amount}
+              discountAmount={effectiveCreditScoreStartData?.discount_amount}
+              finalAmount={effectiveCreditScoreStartData?.final_amount}
+              paymentUrl={effectiveCreditScoreStartData?.payment_url}
               loading={isStartingCreditScoreResultGeneration}
               onContinue={() => {}}
               trackingId={trackingId}
-              creditScoreStartData={creditScoreStartData}
+              creditScoreStartData={effectiveCreditScoreStartData}
             />
           );
         }
@@ -365,8 +454,10 @@ export default function ContinueRequestPage() {
           shouldEvaluateRules,
           isEvaluateRulesLoading,
           evaluateRulesData,
+          requestStatus
         );
-        if (requestStatus == "waiting_credit_score") {
+        if (requestStatus == "waiting_credit_score" || requestStatus == 'waiting_rules') {
+          console.log('hi hi hi')
           return (
             <CreditScoreResult
               status={creditScoreResultData ? "ready" : "pending"}
@@ -389,8 +480,9 @@ export default function ContinueRequestPage() {
         if (shouldEvaluateRules && isEvaluateRulesLoading) {
           return <Loading message="در حال بررسی قوانین درخواست..." />;
         }
-
+        console.log('hi hihi')
         return (
+
           <PaymentInfo
             trackingId={trackingId}
             orderDetails={fetchedOrderDetails}
@@ -480,17 +572,19 @@ export default function ContinueRequestPage() {
 
       {step != 2 &&
         // requestStatus !== "waiting_credit_score" &&
-        requestStatus !== "waiting_rules" &&
+        // requestStatus !== "waiting_rules" &&
         requestStatus !== 'waiting_guarantor' &&
         nextStep !== "plan" && (
           <div className="mt-6">
             <button
               type="button"
               onClick={handleNext}
-              disabled={getPaymentInformation.isPending}
+              disabled={getPaymentInformation.isPending || isEvaluateRulesLoading}
               className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {getPaymentInformation.isPending
+              {isEvaluateRulesLoading
+                ? "در حال بررسی قوانین..."
+                : getPaymentInformation.isPending
                 ? "در حال انتقال..."
                 : shouldShowDownPaymentButton
                   ? "پرداخت پیش پرداخت"
