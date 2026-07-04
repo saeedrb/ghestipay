@@ -20,6 +20,10 @@ export default function CreditScoreIntro({
   finalAmount,
   discountAmount,
   paymentUrl,
+  hasDiscount: hasDiscountProp,
+  displayAmount: displayAmountProp,
+  displayDiscountAmount: displayDiscountAmountProp,
+  displayFinalAmount: displayFinalAmountProp,
 }) {
   const handlePaymentClick = () => {
     if (paymentUrl) {
@@ -30,10 +34,15 @@ export default function CreditScoreIntro({
     onContinue?.();
   };
 
-  const hasDiscount = Boolean(Number(discountAmount));
-  const displayAmount = formatAmount(amount);
-  const displayDiscountAmount = formatAmount(discountAmount);
-  const displayFinalAmount = formatAmount(finalAmount || amount);
+  const hasDiscount =
+    typeof hasDiscountProp === "boolean"
+      ? hasDiscountProp
+      : Boolean(Number(discountAmount));
+  const displayAmount = displayAmountProp || formatAmount(amount);
+  const displayDiscountAmount =
+    displayDiscountAmountProp || formatAmount(discountAmount);
+  const displayFinalAmount =
+    displayFinalAmountProp || formatAmount(finalAmount || amount);
 
   return (
     <Card className="mt-6 space-y-5">

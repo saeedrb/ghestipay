@@ -44,5 +44,9 @@ export const creditService = {
   },
   creditScoreResult(trackingId) {
     return client.post(`/v1/installment-requests/${trackingId}/credit-score/result`);
+  },
+  resendOtpCodeForInstallmentCreditScore (trakingId) {
+    return client.post(`/v1/installment-requests/${trakingId}/credit-score/resend-otp`)
   }
+  
 };

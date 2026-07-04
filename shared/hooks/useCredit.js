@@ -1,5 +1,6 @@
-﻿import { useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { creditService } from "../services/credit.service";
+import { installmentService } from "../services/installment.service";
 import { useCreditStore } from "../stores/credit.store";
 
 function extractCreditRequest(res) {
@@ -68,6 +69,14 @@ export function useCredit() {
       return creditService.creditScoreResult(trakingId);
     }
   });
+  const ResendVerifycodeForInstallmentRequest = useMutation({
+    mutationFn: ({ requestId }) =>
+      creditService.resendOtpCodeForInstallmentCreditScore(requestId)
+  });
+  const ResendVerifyCodeForCreditScore = useMutation({
+    mutationFn: ({ requestId }) =>
+      installmentService.resendVerifyCodeForGuarantorCreditScore(requestId),
+  });
 
   return {
     getLatestCreditScore,
@@ -79,6 +88,8 @@ export function useCredit() {
     generateCreditScoreResult,
     startCreditScoreResultGeneration,
     verifyCreditCode,
-    creditScoreResult
+    creditScoreResult,
+    ResendVerifyCodeForCreditScore,
+    ResendVerifycodeForInstallmentRequest
   };
 }
