@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Banknote, CalendarDays, CreditCard, ReceiptText } from "lucide-react";
 import { useInstallment } from "@/shared/hooks/useInstallment";
 
@@ -53,9 +53,9 @@ export default function PaymentInfo({
   showConfirmButton = true,
   evaluateRulesData,
 }) {
-  const { setPaymentPlan, removePaymentPlan } = useInstallment();
+  const { setPaymentPlan, removePaymentPlan, getPaymentInformation } =
+    useInstallment();
 
-  // Derived numbers from API + props.
   const invoiceAmount = Number(
     evaluateRulesData?.invoice_amount ?? totalAmount,
   );
@@ -88,7 +88,6 @@ export default function PaymentInfo({
     defaultDownPayment ?? downPayment ?? downPaymentMin,
   );
 
-  // Local UI state.
   const [installmentMonths, setInstallmentMonths] = useState(
     defaultInstallmentMonths,
   );
@@ -100,6 +99,17 @@ export default function PaymentInfo({
   const [isPlanLocked, setIsPlanLocked] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
 
+  useEffect(() => {
+    if (evaluateRulesData?.active_plan || evaluateRulesData?.plan_id) {
+      setIsPlanLocked(true);
+      setPaymentPlanData(evaluateRulesData);
+      return;
+    }
+
+    setIsPlanLocked(false);
+    setPaymentPlanData(null);
+  }, [evaluateRulesData]);
+
   const activePlan = paymentPlanData || evaluateRulesData;
   const activePlanRoot =
     paymentPlanData?.active_plan ||
@@ -107,9 +117,17 @@ export default function PaymentInfo({
     evaluateRulesData?.active_plan ||
     evaluateRulesData ||
     null;
-  const isCalculated = isPlanLocked;
 
-  // Summary math.
+  const isCalculated = isPlanLocked;
+  const selectedPlanId =
+    activePlanRoot?.plan_id ||
+    activePlanRoot?.id ||
+    paymentPlanData?.plan_id ||
+    paymentPlanData?.id ||
+    evaluateRulesData?.plan_id ||
+    evaluateRulesData?.id;
+  const hasSelectedPlan = isCalculated && Boolean(selectedPlanId);
+
   const payableByChecks = Math.max(invoiceAmount - selectedDownPayment, 0);
   const checksCount = Math.max(Math.ceil(installmentMonths / checkInterval), 1);
   const checkAmount = Math.ceil(payableByChecks / checksCount);
@@ -118,8 +136,6 @@ export default function PaymentInfo({
     0,
   );
   const totalInstallmentPayments = checkAmount * checksCount;
-  const grandTotalPayments =
-    selectedDownPayment + feesTotal + totalInstallmentPayments;
 
   const buildSummary = (
     months,
@@ -145,7 +161,6 @@ export default function PaymentInfo({
     };
   };
 
-  // Change handlers.
   const handleInstallmentMonthsChange = (value) => {
     if (isCalculated) return;
     setInstallmentMonths(value);
@@ -176,7 +191,10 @@ export default function PaymentInfo({
       },
       {
         onSuccess: (res) => {
-          setPaymentPlanData(res?.data?.data || res?.data || null);
+          const data = res?.data?.data || res?.data || null;
+          const planData = data?.active_plan || data?.plan || data;
+
+          setPaymentPlanData(planData);
           setIsPlanLocked(true);
         },
       },
@@ -184,7 +202,7 @@ export default function PaymentInfo({
   };
 
   const handleChangePlan = () => {
-    const planId = activePlanRoot?.plan_id;
+    const planId = selectedPlanId;
     if (!trackingId || !planId) return;
 
     removePaymentPlan.mutate(
@@ -193,6 +211,30 @@ export default function PaymentInfo({
         onSuccess: () => {
           setIsPlanLocked(false);
           setPaymentPlanData(null);
+        },
+      },
+    );
+  };
+
+  const handlePayment = () => {
+    const planId = selectedPlanId;
+
+    if (!trackingId || !planId) return;
+
+    getPaymentInformation.mutate(
+      { trackingId, planId },
+      {
+        onSuccess: (res) => {
+          const paymentUrl =
+            res?.data?.data?.payment_url ||
+            res?.data?.payment_url ||
+            res?.data?.data?.url ||
+            res?.data?.url ||
+            res?.payment_url;
+
+          if (paymentUrl) {
+            window.location.href = paymentUrl;
+          }
         },
       },
     );
@@ -213,7 +255,7 @@ export default function PaymentInfo({
       <div className="grid gap-3 sm:grid-cols-2">
         <SummaryCard
           icon={ReceiptText}
-          label="مبلغ کل خرید"
+          label="مبلغ کل فاکتور"
           value={formatPrice(invoiceAmount)}
         />
         <SummaryCard
@@ -321,26 +363,19 @@ export default function PaymentInfo({
             {confirmLoading ? "در حال محاسبه..." : "محاسبه"}
           </button>
         )}
-
-        {showConfirmButton && isCalculated && (
-          <button
-            type="button"
-            onClick={handleChangePlan}
-            disabled={!trackingId}
-            className="mt-8 w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-600 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            تغییر پلن
-          </button>
-        )}
       </section>
 
       {isCalculated && (
         <CalculateResult
-          payableByChecks={payableByChecks}
           checksCount={checksCount}
-          checkAmount={checkAmount}
           totalInstallmentPayments={totalInstallmentPayments}
           paymentPlanData={paymentPlanData}
+          showConfirmButton={showConfirmButton}
+          hasSelectedPlan={hasSelectedPlan}
+          trackingId={trackingId}
+          getPaymentInformation={getPaymentInformation}
+          onPayment={handlePayment}
+          onChangePlan={handleChangePlan}
         />
       )}
     </div>
@@ -348,13 +383,16 @@ export default function PaymentInfo({
 }
 
 function CalculateResult({
-  payableByChecks,
   checksCount,
-  checkAmount,
   totalInstallmentPayments,
   paymentPlanData,
+  showConfirmButton,
+  hasSelectedPlan,
+  trackingId,
+  getPaymentInformation,
+  onPayment,
+  onChangePlan,
 }) {
-  console.log(paymentPlanData);
   const planRoot = paymentPlanData?.active_plan || paymentPlanData || null;
   const installment = planRoot?.installment || {};
   const invoice = planRoot?.invoice || {};
@@ -399,7 +437,9 @@ function CalculateResult({
         </div>
 
         <div className="rounded-xl bg-white p-3">
-          <p className="mb-3 text-xs font-bold text-slate-500">هزینه‌های جانبی</p>
+          <p className="mb-3 text-xs font-bold text-slate-500">
+            هزینه‌های جانبی
+          </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <SummaryLine
               label="هزینه انجام عملیات دیجیتال"
@@ -421,16 +461,6 @@ function CalculateResult({
             />
           </div>
         </div>
-
-        {/* <div className="rounded-xl bg-blue-600 p-3">
-          <p className="mb-3 text-xs font-bold text-blue-100">مجموع پرداخت نهایی</p>
-          <SummaryLine
-            label="جمع کل"
-            value={formatPrice(
-              installment?.total_installment_amount ?? totalInstallmentPayments,
-            )}
-          />
-        </div> */}
       </div>
 
       <div className="mt-4 flex gap-2 rounded-xl bg-white/70 p-3 text-xs leading-6 text-slate-600">
@@ -440,6 +470,28 @@ function CalculateResult({
           محاسبه می‌شود.
         </p>
       </div>
+
+      {showConfirmButton && hasSelectedPlan && (
+        <div className="mt-8 grid gap-3">
+          <button
+            type="button"
+            onClick={onPayment}
+            disabled={!trackingId || getPaymentInformation.isPending}
+            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {getPaymentInformation.isPending ? "در حال انتقال..." : "پرداخت"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onChangePlan}
+            disabled={!trackingId}
+            className="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-600 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            تغییر پلن
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -498,7 +550,7 @@ function CompactDropdown({
 
       {open && !disabled && (
         <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-          <div className="max-h-56 overflow-y-auto pr-1">
+          <div className="max-h-42 overflow-y-auto pr-1">
             <div className="space-y-1">
               {options.map((option) => (
                 <button

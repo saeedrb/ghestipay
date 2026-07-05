@@ -10,6 +10,8 @@ import Error from "@/app/user/components/ui/Installment/Error";
 import InstallmentCreditScoreIntro from "@/app/user/components/ui/Installment/InstallmentCreditScoreIntro";
 import InstallmentVerifyCreditScoreOtpCode from "@/app/user/components/ui/Installment/InstallmentVerifyCreditScoreOtpCode";
 import InstallmentCreditScoreResult from "@/app/user/components/ui/Installment/InstallmentCreditScoreResult";
+import InstallmentPlanSelection from "@/app/user/components/ui/Installment/InstallmentPlanSelection";
+import InstallmentPayErorPage from "@/app/user/components/ui/Installment/InstallmentPayErorPage";
 
 export default function ContinueRequestPage() {
   const [step, setStep] = useState(1);
@@ -37,10 +39,6 @@ export default function ContinueRequestPage() {
     orderDetails?.tracking_code ||
     trackingId;
 
-
-
-
-
   if (isLoading) {
     return <Loading message="در حال دریافت جزئیات درخواست..." />;
   }
@@ -55,36 +53,42 @@ export default function ContinueRequestPage() {
     switch (requestStatus) {
       case "waiting_credit_score":
         return (
-          <InstallmentCreditScoreIntro orderDetails={orderDetails} refetchRequest={refetch} />
+          <InstallmentCreditScoreIntro
+            orderDetails={orderDetails}
+            refetchRequest={refetch}
+          />
         );
 
       case "credit_score_otp_sent":
         return (
-          <InstallmentVerifyCreditScoreOtpCode orderDetails={orderDetails} refetchRequest={refetch}  />
+          <InstallmentVerifyCreditScoreOtpCode
+            orderDetails={orderDetails}
+            refetchRequest={refetch}
+          />
         );
 
       case "credit_score_result_pending":
       case "waiting_rules":
         return (
-          <InstallmentCreditScoreResult orderDetails={orderDetails} refetchRequest={refetch}   />
+          <InstallmentCreditScoreResult
+            orderDetails={orderDetails}
+            refetchRequest={refetch}
+          />
         );
 
       case "waiting_plan_selection":
         return (
-          <StepPlaceholder
-            title="انتخاب پلن"
-            description="در این مرحله کامپوننت انتخاب پلن اقساط نمایش داده می‌شود."
-            status={requestStatus}
+          <InstallmentPlanSelection
+            orderDetails={orderDetails}
+            refetchRequest={refetch}
           />
         );
 
       case "waiting_payment":
-      case "payment":
         return (
-          <StepPlaceholder
-            title="پرداخت"
-            description="در این مرحله کامپوننت پرداخت نمایش داده می‌شود."
-            status={requestStatus}
+          <InstallmentPayErorPage
+            orderDetails={orderDetails}
+            refetchRequest={refetch}
           />
         );
 
@@ -109,9 +113,7 @@ export default function ContinueRequestPage() {
   };
 
   return (
-    <div className="flex w-full flex-col px-4 pb-8 pt-6">
-      {renderContent()}
-    </div>
+    <div className="flex w-full flex-col px-4 pb-8 pt-6">{renderContent()}</div>
   );
 }
 
