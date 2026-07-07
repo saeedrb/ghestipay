@@ -85,6 +85,14 @@ export default function ContinueRequestPage() {
         );
 
       case "waiting_payment":
+        if (orderDetails.plan_id == null) {
+          return (
+            <InstallmentPlanSelection
+              orderDetails={orderDetails}
+              refetchRequest={refetch}
+            />
+          );
+        }
         return (
           <InstallmentPayErorPage
             orderDetails={orderDetails}

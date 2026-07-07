@@ -60,6 +60,7 @@ export const installmentService = {
   },
 
   async getPaymentInformation({ trackingId, planId }) {
+    // return false;
     return client.post(
       `/v1/installment-requests/${trackingId}/plans/${planId}/pay`,
     );
