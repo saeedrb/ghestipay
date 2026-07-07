@@ -12,6 +12,7 @@ import InstallmentVerifyCreditScoreOtpCode from "@/app/user/components/ui/Instal
 import InstallmentCreditScoreResult from "@/app/user/components/ui/Installment/InstallmentCreditScoreResult";
 import InstallmentPlanSelection from "@/app/user/components/ui/Installment/InstallmentPlanSelection";
 import InstallmentPayErorPage from "@/app/user/components/ui/Installment/InstallmentPayErorPage";
+import InstallmentGuarantorSet from "@/app/user/components/ui/Installment/InstallmentGuarantorSet";
 
 export default function ContinueRequestPage() {
   const [step, setStep] = useState(1);
@@ -102,10 +103,9 @@ export default function ContinueRequestPage() {
 
       case "waiting_guarantor":
         return (
-          <StepPlaceholder
-            title="ضامن"
-            description="در این مرحله کامپوننت ثبت یا انتظار ضامن نمایش داده می‌شود."
-            status={requestStatus}
+          <InstallmentGuarantorSet
+            orderDetails={orderDetails}
+            refetchRequest={refetch}
           />
         );
 
