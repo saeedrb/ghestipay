@@ -200,7 +200,7 @@ export default function RequestsPage() {
         onSuccess: () => {
           getGuaranteeRequest.refetch();
           router.push(
-            `/user/guarantor?id=${encodeURIComponent(request.id)}&status=${encodeURIComponent(
+            `/user/guarantor/${request.id}?id=${encodeURIComponent(request.id)}&status=${encodeURIComponent(
               request.status || "",
             )}&next_step=${encodeURIComponent(request.nextStep || "")}`,
           );
@@ -267,7 +267,7 @@ export default function RequestsPage() {
                 request={request}
                 onAccept={handleAcceptGuarantee}
                 onReject={handleRejectGuarantee}
-                continueHref={`/user/guarantor?id=${encodeURIComponent(
+                continueHref={`/user/guarantor/${request.id}?id=${encodeURIComponent(
                   request.id,
                 )}&status=${encodeURIComponent(
                   request.status || "",

@@ -191,7 +191,7 @@ export default function CreditScoreResult({
           </div>
         )}
 
-        {loanGuarantedSummary.length > 0 && (
+        {loanGuarantedSummary?.length > 0 && (
           <div className="rounded-2xl border border-red-100 bg-red-50/50">
             <button
               type="button"

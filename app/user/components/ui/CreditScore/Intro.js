@@ -60,7 +60,7 @@ export default function CreditScoreIntro({
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+      {amount != 0 && <div className="grid gap-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
         {hasDiscount ? (
           <>
             <div className="flex items-center justify-between gap-3">
@@ -106,11 +106,11 @@ export default function CreditScoreIntro({
             مرحله بعد شوید.
           </span>
         </div>
-      </div>
+      </div>}
 
-      <Button disabled={loading || !paymentUrl} onClick={handlePaymentClick}>
+      {amount != 0 && <Button disabled={loading || !paymentUrl} onClick={handlePaymentClick}>
         {loading ? "در حال پردازش..." : "پرداخت "}
-      </Button>
+      </Button>}
     </Card>
   );
 }

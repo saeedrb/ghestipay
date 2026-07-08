@@ -96,11 +96,17 @@ export const installmentService = {
     );
   },
   async getGuarantorScoreResult(requestId) {
-    return client.get(`/v1/guarantors/requests/${requestId}/credit-score/result`);
+    return client.get(
+      `/v1/guarantors/requests/${requestId}/credit-score/result`,
+    );
   },
   async resendVerifyCodeForGuarantorCreditScore(requestId) {
     return client.post(
       `/v1/guarantors/requests/${requestId}/credit-score/resend-otp`,
     );
+  },
+
+  async evaluateGuarantorRules(requestId) {
+    return client.post(`/v1/guarantors/requests/${requestId}/rules/evaluate`);
   },
 };
